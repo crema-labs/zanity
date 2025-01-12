@@ -1,6 +1,6 @@
 {
-  "add": {
-    "file": "add",
-    "template": "Add"
+  "zanity": {
+    "file": "zanity",
+    "template": "Zanity"
   }
 }

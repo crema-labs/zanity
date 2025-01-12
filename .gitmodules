@@ -1,0 +1,3 @@
+[submodule "circuits/ecies"]
+	path = circuits/ecies
+	url = https://github.com/crema-labs/ecies-circom.git
