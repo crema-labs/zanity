@@ -1,6 +1,7 @@
 pragma circom 2.1.5;
 
 include "./ecies/circuits/encrypt.circom";
+include "../node_modules/circomlib/circuits/bitify.circom";
 include "./ecies/circuits/utils.circom";
 include "./ecies/circuits/ecdsa-0xparc/circuits/secp256k1.circom";
 include "./keccak-circom/keccak.circom";
@@ -61,5 +62,44 @@ template Zanity() {
 
   vanity_pubkey[0] <== StridesToBytes[0].out;
   vanity_pubkey[1] <== StridesToBytes[1].out;
+
+  signal vanity_pubkey_concat[64]; 
+  
+  for (var i = 0; i < 32; i++) {
+    vanity_pubkey_concat[i] <== vanity_pubkey[0][i];
+    vanity_pubkey_concat[i + 32] <== vanity_pubkey[1][i];
+  }
+
+  for (var i = 0; i < 64; i++) { 
+    log(vanity_pubkey_concat[i]);
+  }
+  log("vanity pubkey done");
+
+  component keccak = Keccak(64 * 8, 256);
+  component n2b[64];
+  for (var i = 0; i < 64; i++) {
+    n2b[i] = Num2Bits(8);
+    n2b[i].in <== vanity_pubkey_concat[i];
+    for (var j = 0; j < 8; j++) {
+      keccak.in[i * 8 + j] <== n2b[i].out[7 - j];
+    }
+  }
+
+  signal keccakBytes[32];
+  component keccakBytesComp[32];
+
+  for (var i = 0; i < 32; i++) {
+    keccakBytesComp[i] = Bits2Num(8);
+    for (var j = 0; j < 8; j++) {
+        log(keccak.out[i * 8 + j]);
+        keccakBytesComp[i].in[7 - j] <== keccak.out[i * 8 + j];
+    }
+    keccakBytes[i] <== keccakBytesComp[i].out;
+  }
+
+  log("keccak bytes");
+  for (var i = 0; i < 32; i++) { 
+    log(keccakBytes[i]);
+  }
 }
 
