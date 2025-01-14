@@ -3,9 +3,9 @@ pragma circom 2.1.5;
 include "./ecies/circuits/encrypt.circom";
 include "./ecies/circuits/utils.circom";
 include "./ecies/circuits/ecdsa-0xparc/circuits/secp256k1.circom";
+include "./keccak-circom/keccak.circom";
 
 template Zanity() {
-  // Input signals for ECIES
   signal input r[32];     // Random value (private key)
   signal input x[32];     // X coordinate of recipient's public key
   signal input y[32];     // Y coordinate of recipient's public key
