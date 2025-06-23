@@ -5,6 +5,7 @@ include "../node_modules/circomlib/circuits/bitify.circom";
 include "./ecies/circuits/utils.circom";
 include "./ecies/circuits/ecdsa-0xparc/circuits/secp256k1.circom";
 include "./keccak-circom/keccak.circom";
+include "./matcher.circom";
 
 template Zanity() {
   signal input r[32];     // Random value (private key)
@@ -14,12 +15,14 @@ template Zanity() {
   signal input s1[0];   // First salt for key derivation
   signal input s2[0];   // Second salt for HMAC
   signal input priv_key[32];   // Plaintext to encrypt
+  signal input vanity[20]; // Vanity string to match
 
   // Expected outputs from ECIES
   signal output ct_pubkey[2][4];  // Decryption public key
   signal output ct[32];       // Encrypted private key
   signal output ct_hmac[32];      // HMAC for authentication
   signal output vanity_pubkey[2][32];  // Vanity public key
+  signal output matches; // Output signal indicating if the vanity pattern matches
 
   // ECIES encryption
   component ECIES = Encrypt(32,0,0);
@@ -66,22 +69,17 @@ template Zanity() {
   signal vanity_pubkey_concat[64]; 
   
   for (var i = 0; i < 32; i++) {
-    vanity_pubkey_concat[i] <== vanity_pubkey[0][i];
-    vanity_pubkey_concat[i + 32] <== vanity_pubkey[1][i];
+    vanity_pubkey_concat[i] <== vanity_pubkey[0][31-i];
+    vanity_pubkey_concat[i + 32] <== vanity_pubkey[1][31-i];
   }
 
-  for (var i = 0; i < 64; i++) { 
-    log(vanity_pubkey_concat[i]);
-  }
-  log("vanity pubkey done");
-
-  component keccak = Keccak(64 * 8, 256);
+  component keccak = Keccak(512, 256);
   component n2b[64];
   for (var i = 0; i < 64; i++) {
     n2b[i] = Num2Bits(8);
     n2b[i].in <== vanity_pubkey_concat[i];
     for (var j = 0; j < 8; j++) {
-      keccak.in[i * 8 + j] <== n2b[i].out[7 - j];
+      keccak.in[i * 8 + j] <== n2b[i].out[j];
     }
   }
 
@@ -91,15 +89,17 @@ template Zanity() {
   for (var i = 0; i < 32; i++) {
     keccakBytesComp[i] = Bits2Num(8);
     for (var j = 0; j < 8; j++) {
-        log(keccak.out[i * 8 + j]);
-        keccakBytesComp[i].in[7 - j] <== keccak.out[i * 8 + j];
+        keccakBytesComp[i].in[j] <== keccak.out[i * 8 + j];
     }
     keccakBytes[i] <== keccakBytesComp[i].out;
   }
 
-  log("keccak bytes");
-  for (var i = 0; i < 32; i++) { 
-    log(keccakBytes[i]);
+  component Matcher = Matcher(20);
+  for (var i = 0; i < 20; i++) {
+    Matcher.ideal[i] <== vanity[i];
+    Matcher.actual[i] <== keccakBytes[12 + i]; 
   }
+
+  matches <== Matcher.matches;
 }
 
