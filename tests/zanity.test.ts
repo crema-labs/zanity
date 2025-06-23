@@ -1,10 +1,12 @@
 import { WitnessTester } from "circomkit";
 import { circomkit } from "./common";
+import { getPublicKey, Point } from "@noble/secp256k1";
+import { keccak_256 } from "@noble/hashes/sha3";
 
 describe("Zanity", () => {
   let circuit: WitnessTester<
-    ["r", "x", "y", "iv", "s1", "s2", "priv_key"],
-    ["ct_pubkey", "ct", "ct_hmac", "vanity_pubkey"]
+    ["r", "x", "y", "iv", "s1", "s2", "priv_key", "vanity"],
+    ["ct_pubkey", "ct", "ct_hmac", "vanity_pubkey","matches"]
   >;
   describe("Zanity", () => {
     before(async () => {
@@ -15,307 +17,49 @@ describe("Zanity", () => {
       console.log("#constraints:", await circuit.getConstraintCount());
     });
 
-    const stringToNumMapper = (s: string[]) => s.map(Number);
+    const priv_key = "2e40f2393ca9b0f3ecda7df8848782d99ceccf0c151ac1f69fa72f176f13a838";
+    const mined_priv_key = "6f3d888dbf78ffaab54a9daee30fb70653bdc7a024db378dff4f56534559a482";
+    const priv_key_big = BigInt("0x" + priv_key);
+    // const pub_key = Point.fromPrivateKey(Buffer.from(priv_key, "hex"));
+    const mined_pub_key = Point.fromPrivateKey(Buffer.from(mined_priv_key, "hex"));
 
-    const r = [
-      "10",
-      "4",
-      "105",
-      "124",
-      "178",
-      "203",
-      "117",
-      "29",
-      "54",
-      "117",
-      "140",
-      "233",
-      "50",
-      "25",
-      "136",
-      "5",
-      "179",
-      "172",
-      "208",
-      "243",
-      "38",
-      "22",
-      "1",
-      "203",
-      "194",
-      "54",
-      "182",
-      "125",
-      "220",
-      "80",
-      "36",
-      "53",
-    ];
+    const iv = [38, 243, 60, 81, 23, 164, 6, 250, 43, 14, 233, 137, 159, 143, 170, 226];
 
-    const x = [
-      "165",
-      "239",
-      "44",
-      "1",
-      "195",
-      "80",
-      "134",
-      "18",
-      "107",
-      "85",
-      "225",
-      "230",
-      "193",
-      "84",
-      "110",
-      "139",
-      "14",
-      "73",
-      "227",
-      "116",
-      "119",
-      "203",
-      "187",
-      "48",
-      "91",
-      "43",
-      "248",
-      "94",
-      "196",
-      "229",
-      "80",
-      "3",
-    ];
+    const s1: number[] = [];
+    const s2: number[] = [];
 
-    const y = [
-      "96",
-      "165",
-      "72",
-      "96",
-      "192",
-      "1",
-      "94",
-      "61",
-      "77",
-      "206",
-      "40",
-      "226",
-      "220",
-      "202",
-      "117",
-      "29",
-      "97",
-      "57",
-      "139",
-      "168",
-      "210",
-      "145",
-      "226",
-      "75",
-      "118",
-      "0",
-      "250",
-      "154",
-      "76",
-      "163",
-      "242",
-      "73",
-    ];
-
-    const iv = ["38", "243", "60", "81", "23", "164", "6", "250", "43", "14", "233", "137", "159", "143", "170", "226"];
-
-    const s1: string[] = [];
-    const s2: string[] = [];
-
-    const priv_key = [
-      "70",
-      "216",
-      "129",
-      "18",
-      "29",
-      "13",
-      "124",
-      "253",
-      "255",
-      "82",
-      "181",
-      "162",
-      "209",
-      "187",
-      "185",
-      "105",
-      "246",
-      "222",
-      "179",
-      "211",
-      "125",
-      "115",
-      "225",
-      "17",
-      "193",
-      "196",
-      "70",
-      "108",
-      "49",
-      "217",
-      "97",
-      "196",
-    ];
-
-    const ct_pubkey_x = ["6227147571215365378", "4234698112261736578", "13901701319251181340", "14152635409947359595"];
-
-    const ct_pubkey_y = ["8835749479773427316", "1067085876512458494", "11580084316682943404", "17984713301789609579"];
-
-    const ct = [
-      "83",
-      "91",
-      "19",
-      "253",
-      "156",
-      "176",
-      "180",
-      "166",
-      "63",
-      "245",
-      "250",
-      "94",
-      "252",
-      "74",
-      "23",
-      "245",
-      "111",
-      "165",
-      "43",
-      "62",
-      "255",
-      "35",
-      "126",
-      "167",
-      "5",
-      "52",
-      "138",
-      "116",
-      "255",
-      "242",
-      "116",
-      "25",
-    ];
-
-    const ct_hmac = [
-      "24",
-      "246",
-      "67",
-      "247",
-      "189",
-      "160",
-      "196",
-      "115",
-      "174",
-      "235",
-      "244",
-      "44",
-      "77",
-      "184",
-      "204",
-      "95",
-      "108",
-      "37",
-      "61",
-      "232",
-      "98",
-      "46",
-      "138",
-      "152",
-      "218",
-      "8",
-      "76",
-      "187",
-      "76",
-      "61",
-      "51",
-      "56",
-    ];
+    const r = priv_key;
 
     it("zanity", async () => {
       await circuit.calculateWitness({
-        r: stringToNumMapper(r),
-        x: stringToNumMapper(x),
-        y: stringToNumMapper(y),
-        iv: stringToNumMapper(iv),
-        s1: stringToNumMapper(s1),
-        s2: stringToNumMapper(s2),
-        priv_key: stringToNumMapper(priv_key),
+        r: bigint_to_array(8, 32, priv_key_big),
+        x: bigint_to_array(8, 32, mined_pub_key.x),
+        y: bigint_to_array(8, 32, mined_pub_key.y),
+        iv: iv,
+        s1: s1,
+        s2: s2,
+        priv_key: bigint_to_array(8, 32, priv_key_big),
+        // vanity: c4e3a5.................
+        vanity: [
+          0xc4, 0xe3, 0xa5, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e, 0x2e,
+          0x2e, 0x2e,
+        ],
       });
     });
   });
 });
 
-const arr = `55
-196
-133
-247
-35
-54
-70
-29
-138
-176
-37
-185
-153
-212
-250
-21
-171
-78
-112
-50
-161
-56
-118
-140
-45
-79
-250
-162
-11
-44
-165
-46
-168
-209
-187
-123
-19
-71
-142
-109
-128
-167
-252
-152
-86
-211
-218
-62
-139
-100
-244
-123
-102
-176
-155
-203
-6
-94
-106
-182
-155
-169
-48
-240`
-  .split("\n")
-  .map(Number);
-console.log(arr);
-const buf = Buffer.from(arr).toString("hex");
-console.log(buf);
+export function bigint_to_array(n: number, k: number, x: bigint) {
+  let mod: bigint = 1n;
+  for (var idx = 0; idx < n; idx++) {
+    mod = mod * 2n;
+  }
+
+  let ret: bigint[] = [];
+  var x_temp: bigint = x;
+  for (var idx = 0; idx < k; idx++) {
+    ret.push(x_temp % mod);
+    x_temp = x_temp / mod;
+  }
+  return ret;
+}
